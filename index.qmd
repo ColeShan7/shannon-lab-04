@@ -1,8 +1,9 @@
 
 ---
 title: "Binary Logistic Regression: Model Specification, Comparison, and Interpretation"
-subtitle: PSYCH 9041 - Lab 4
-author: Cole Shannon
+subtitle: "PSYCH 9041 - Lab 4"
+author: "Cole Shannon"
+date: "2026-11-12"
 format:
   html:
     toc: true
@@ -23,11 +24,7 @@ This reproducible report evaluates whether passenger sex, ticket class, and age 
 
 ## Part 1: Configure the project and examine the data
 
-### 1.1. Project and reproducibility
-
-The analysis uses a Quarto document in an RStudio project linked to a GitHub repository. All commands needed to reproduce the reported results appear below.
-
-### 1.2. Required packages
+### 1.1. Required packages
 
 ```{r}
 #| label: setup
@@ -44,10 +41,11 @@ library(ggeffects)
 library(titanic)
 ```
 
-### 1.3. Load the data
+### 1.2. Load the data
 
 ```{r}
 #| label: load-data
+
 titanic <- titanic_train |>
   select(Survived, Sex, Age, Pclass) |>
   drop_na() |>
@@ -79,15 +77,17 @@ titanic <- titanic_train |>
   )
 
 n <- nrow(titanic)
+
 stopifnot(n == 714)
 ```
 
 The complete-case sample contains `r n` passengers. `Survived` is coded 0 (died) and 1 (survived); `Sex`, `Age`, and `Pclass` are predictors. Passenger class is used as an imperfect proxy for socioeconomic status.
 
-### 1.4. Descriptive statistics and category counts
+### 1.3. Descriptive statistics and category counts
 
 ```{r}
 #| label: descriptives
+
 age_stats <- titanic |>
   summarise(
     Mean = mean(Age),
@@ -99,31 +99,42 @@ age_stats <- titanic |>
 age_stats |>
   gt() |>
   tab_header(title = "Passenger Age") |>
-  fmt_number(columns = everything(), decimals = 2)
+  fmt_number(
+    columns = everything(),
+    decimals = 2
+  )
 
 counts <- bind_rows(
   titanic |>
     count(Category = Survived.Char) |>
     mutate(Variable = "Survival"),
+
   titanic |>
     count(Category = as.character(Sex)) |>
     mutate(Variable = "Sex"),
+
   titanic |>
     count(Category = Pclass.Char) |>
     mutate(Variable = "Passenger class")
 ) |>
-  select(Variable, Category, Count = n)
+  select(
+    Variable,
+    Category,
+    Count = n
+  )
 
 counts |>
   gt(groupname_col = "Variable") |>
-  tab_header(title = "Cell Counts for Categorical Variables")
+  tab_header(
+    title = "Cell Counts for Categorical Variables"
+  )
 ```
 
 Mean age was `r sprintf('%.2f', age_stats$Mean)` years (SD = `r sprintf('%.2f', age_stats$SD)`; range `r age_stats$Min`–`r age_stats$Max`). There were `r sum(titanic$Survived == 1)` survivors and `r sum(titanic$Survived == 0)` non-survivors.
 
 There were `r sum(titanic$Sex == 'female')` females and `r sum(titanic$Sex == 'male')` males. Third class accounted for `r sum(titanic$Pclass == '3')` of the `r n` passengers, more than either other class.
 
-The categorical groups are not equally represented, and a minority of passengers survived.
+The categorical groups were not equally represented, and a minority of passengers survived.
 
 ## Part 2: Specify competing binary logistic regression models
 
@@ -139,10 +150,11 @@ These are hypotheses about associations, not causal conclusions.
 
 ### 2.2. Four nested models
 
-As specified in the assignment, models add predictors in the order **Sex, Pclass, Age**. All four models use the same 714 complete cases and the same binomial logit link.
+The models add predictors in the order **Sex, Pclass, Age**. All four models use the same 714 complete cases and the same binomial logit link.
 
 ```{r}
 #| label: fit-models
+
 mod0 <- glmmTMB(
   Survived ~ 1,
   data = titanic,
@@ -172,17 +184,43 @@ mod3 <- glmmTMB(
 
 ```{r}
 #| label: fitted-coefficients
+
 model_terms <- bind_rows(
-  tidy(mod0, effects = "fixed", component = "cond") |>
+  tidy(
+    mod0,
+    effects = "fixed",
+    component = "cond"
+  ) |>
     mutate(Model = "mod0"),
-  tidy(mod1, effects = "fixed", component = "cond") |>
+
+  tidy(
+    mod1,
+    effects = "fixed",
+    component = "cond"
+  ) |>
     mutate(Model = "mod1"),
-  tidy(mod2, effects = "fixed", component = "cond") |>
+
+  tidy(
+    mod2,
+    effects = "fixed",
+    component = "cond"
+  ) |>
     mutate(Model = "mod2"),
-  tidy(mod3, effects = "fixed", component = "cond") |>
+
+  tidy(
+    mod3,
+    effects = "fixed",
+    component = "cond"
+  ) |>
     mutate(Model = "mod3")
 ) |>
-  select(Model, term, estimate, std.error, p.value)
+  select(
+    Model,
+    term,
+    estimate,
+    std.error,
+    p.value
+  )
 
 model_terms |>
   mutate(
@@ -219,11 +257,17 @@ Other coefficients are adjusted for the predictors included in their respective 
 
 ### 3.1. Nested likelihood-ratio tests
 
-The models are nested and estimated on identical cases. The single `anova()` call below compares each model with the preceding model.
+The models are nested and estimated on identical cases. The following comparison evaluates whether each successive model improves fit over the preceding model.
 
 ```{r}
 #| label: nested-tests
-nested_tests <- anova(mod0, mod1, mod2, mod3)
+
+nested_tests <- anova(
+  mod0,
+  mod1,
+  mod2,
+  mod3
+)
 
 nested_tests
 ```
@@ -232,6 +276,7 @@ nested_tests
 
 ```{r}
 #| label: glance-models
+
 model_list <- list(
   mod0 = mod0,
   mod1 = mod1,
@@ -241,6 +286,7 @@ model_list <- list(
 
 model_stats <- bind_rows(
   lapply(names(model_list), function(name) {
+
     model <- model_list[[name]]
     g <- broom.mixed::glance(model)
 
@@ -260,6 +306,7 @@ model_stats <- bind_rows(
 
 ```{r}
 #| label: combined-model-table
+
 nested_df <- data.frame(
   Model = rownames(nested_tests),
   Nested_df = nested_tests[["Chi Df"]],
@@ -290,11 +337,20 @@ comparison |>
     title = "Comparison of Four Nested Logistic Regression Models"
   ) |>
   fmt_number(
-    columns = c(AIC, BIC, logLik, deviance, Nested_Chi2),
+    columns = c(
+      AIC,
+      BIC,
+      logLik,
+      deviance,
+      Nested_Chi2
+    ),
     decimals = 2
   ) |>
   fmt_number(
-    columns = c(Residual_df, Nested_df),
+    columns = c(
+      Residual_df,
+      Nested_df
+    ),
     decimals = 0
   ) |>
   cols_label(
@@ -307,33 +363,39 @@ comparison |>
     Nested_p = "Nested p"
   ) |>
   sub_missing(
-    columns = c(Nested_df, Nested_Chi2),
+    columns = c(
+      Nested_df,
+      Nested_Chi2
+    ),
     missing_text = "—"
   )
 ```
 
 ### 3.4. Interpret model comparisons
 
-`mod3` has the lowest AIC (`r sprintf('%.2f', AIC(mod3))`) and BIC (`r sprintf('%.2f', BIC(mod3))`).
+The full model, `mod3`, had the lowest AIC (`r sprintf('%.2f', AIC(mod3))`) and BIC (`r sprintf('%.2f', BIC(mod3))`) of the four candidate models.
 
-Adding sex to the null model is strongly supported by the likelihood-ratio test (`r ifelse(nested_tests[["Pr(>Chisq)"]][2] < .001, 'p < .001', paste0('p = ', round(nested_tests[["Pr(>Chisq)"]][2], 3)))`).
+Adding sex to the null model produced the largest improvement in fit, χ²(1) = 213.82, *p* < .001.
 
-Adding class after sex is also supported (`r ifelse(nested_tests[["Pr(>Chisq)"]][3] < .001, 'p < .001', paste0('p = ', round(nested_tests[["Pr(>Chisq)"]][3], 3)))`), as is subsequently adding age (`r ifelse(nested_tests[["Pr(>Chisq)"]][4] < .001, 'p < .001', paste0('p = ', round(nested_tests[["Pr(>Chisq)"]][4], 3)))`).
+Adding passenger class after sex also significantly improved fit, χ²(2) = 78.27, *p* < .001.
 
-The improvement from `mod2` to `mod3` tests the contribution of age after adjusting for sex and class, rather than the contribution of class after adjusting for age.
+Finally, adding age after accounting for both sex and passenger class significantly improved fit, χ²(1) = 25.15, *p* < .001.
 
-AIC and BIC agree with the significance tests in preferring the final model among those considered.
+Although adding predictors increases model complexity, the improvements in likelihood were sufficiently large to outweigh the complexity penalties used by AIC and BIC.
+
+Therefore, all three approaches support retaining `mod3` as the preferred model among those evaluated. The sequential improvements depend on the order in which predictors enter the models and should not be interpreted as definitive rankings of causal importance.
 
 ## Part 4: Evaluate binary logistic regression diagnostics
 
 ### 4.1. DHARMa simulation-based residual diagnostics
 
-We examine residual uniformity, dispersion, outliers, and the relationship between residuals and fitted predictions.
+Simulation-based residual diagnostics were used to examine residual uniformity, dispersion, outliers, and relationships between residuals and fitted predictions.
 
-The plots below use the simulated residual values from DHARMa but are drawn using `ggplot2` so no automated test text is placed over the data. The tests are run separately with plotting disabled.
+The plots are constructed using `ggplot2` to avoid overlapping statistical annotations. Formal DHARMa tests are reported separately.
 
 ```{r}
 #| label: simulate-residuals
+
 set.seed(123)
 
 sim_res <- DHARMa::simulateResiduals(
@@ -361,9 +423,13 @@ qq_data <- data.frame(
 #| label: clean-qq
 #| fig-width: 7
 #| fig-height: 5
+
 ggplot(
   qq_data,
-  aes(x = Expected, y = Observed)
+  aes(
+    x = Expected,
+    y = Observed
+  )
 ) +
   geom_point(
     size = 0.8,
@@ -393,6 +459,7 @@ ggplot(
 #| label: clean-residuals-predictions
 #| fig-width: 7
 #| fig-height: 5
+
 ggplot(
   diagnostic_data,
   aes(
@@ -409,7 +476,9 @@ ggplot(
     linetype = "dashed",
     color = "grey65"
   ) +
-  coord_cartesian(ylim = c(0, 1)) +
+  coord_cartesian(
+    ylim = c(0, 1)
+  ) +
   labs(
     title = "DHARMa Residuals Versus Predicted Survival",
     x = "Predicted Probability",
@@ -424,9 +493,13 @@ ggplot(
 #| label: clean-residuals-age
 #| fig-width: 7
 #| fig-height: 4
+
 ggplot(
   diagnostic_data,
-  aes(x = Age, y = scaled_residual)
+  aes(
+    x = Age,
+    y = scaled_residual
+  )
 ) +
   geom_point(
     alpha = .30,
@@ -438,7 +511,9 @@ ggplot(
     color = "steelblue",
     linewidth = .8
   ) +
-  coord_cartesian(ylim = c(0, 1)) +
+  coord_cartesian(
+    ylim = c(0, 1)
+  ) +
   labs(
     title = "DHARMa Residuals Versus Age",
     x = "Age (Years)",
@@ -451,6 +526,7 @@ ggplot(
 
 ```{r}
 #| label: dharma-tests
+
 uniformity_test <- DHARMa::testUniformity(
   sim_res,
   plot = FALSE
@@ -493,7 +569,9 @@ diag_table |>
     )
   ) |>
   gt() |>
-  tab_header(title = "DHARMa Diagnostic Tests") |>
+  tab_header(
+    title = "DHARMa Diagnostic Tests"
+  ) |>
   fmt_number(
     columns = Statistic,
     decimals = 3
@@ -503,27 +581,26 @@ diag_table |>
   )
 ```
 
-The uniformity test (*p* = `r sprintf('%.3f', uniformity_test$p.value)`) and dispersion test (*p* = `r sprintf('%.3f', dispersion_test$p.value)`) do not indicate statistically significant violations.
+The residual uniformity test (*p* = `r sprintf('%.3f', uniformity_test$p.value)`) and dispersion test (*p* = `r sprintf('%.3f', dispersion_test$p.value)`) did not indicate statistically significant departures from the expected residual behaviour.
 
-The outlier test (*p* = `r sprintf('%.3f', outlier_test$p.value)`) should be considered alongside its diagnostic plot, particularly if near the conventional .05 threshold.
-
-These tests do not prove the model is perfectly specified.
+The outlier test (*p* = `r sprintf('%.3f', outlier_test$p.value)`) approached the conventional .05 significance threshold, warranting some caution.
 
 ### 4.2. Collinearity
 
 ```{r}
 #| label: collinearity
+
 performance::check_collinearity(mod3)
 ```
 
-Variance inflation diagnostics are used to assess whether the predictors are highly related. High variance inflation factor (VIF) values would make individual regression estimates less precise and would weaken isolated predictor interpretations.
+Variance inflation factors (VIFs) were used to examine collinearity among the predictors. The observed VIFs ranged from 1.07 to 1.42, indicating low collinearity and suggesting that strong relationships among predictors were unlikely to substantially inflate the coefficient standard errors.
 
 ### 4.3. Complete separation and event counts
 
 ```{r}
 #| label: separation-event-checks
 
-# Observed outcomes within sex and class groups
+# Observed survival outcomes within sex and class
 xtabs(
   ~ Sex + Pclass + Survived,
   data = titanic
@@ -536,10 +613,10 @@ range(
   )
 )
 
-# Check whether coefficients are finite
+# Check for finite coefficients
 all(is.finite(fixef(mod3)$cond))
 
-# Number of survival events per slope parameter
+# Number of survival events per slope coefficient
 number_of_events <- sum(titanic$Survived == 1)
 
 number_of_slopes <- length(
@@ -549,18 +626,19 @@ number_of_slopes <- length(
 number_of_events / number_of_slopes
 ```
 
-There are `r number_of_events` survival events for `r number_of_slopes` slope coefficients, or `r round(number_of_events / number_of_slopes, 1)` events per coefficient.
+There were `r number_of_events` survival events for `r number_of_slopes` slope coefficients, corresponding to `r round(number_of_events / number_of_slopes, 1)` events per coefficient.
 
-The displayed sex-by-class cross-tabulation and finite coefficient checks are useful screens for obvious separation. However, they cannot conclusively exclude separation involving continuous age.
+All sex-by-class combinations contained both survivors and non-survivors, and the fitted coefficients were finite. These findings do not indicate obvious separation among the categorical groups. However, they cannot conclusively rule out separation involving continuous age.
 
 ### 4.4. Linearity of age on the logit scale
 
-A straight-line age effect on the log-odds scale is an assumption of `mod3`.
+The final model assumes that age has a linear relationship with the log-odds of survival.
 
-We compare the linear specification with a more flexible natural-spline age term as a sensitivity check. This diagnostic uses equivalent binomial `glm()` fits on the same cases.
+To assess this assumption, a linear age model was compared with a more flexible natural-spline specification.
 
 ```{r}
 #| label: age-linearity
+
 age_linear <- glm(
   Survived ~ Sex + Pclass + Age,
   family = binomial(),
@@ -582,18 +660,17 @@ linearity_comparison <- anova(
 linearity_comparison
 ```
 
-The extra flexibility of the spline can identify departures from a straight-line age effect.
+The spline model did not significantly improve fit over the linear specification, χ²(2) = 5.14, *p* = .077.
 
-A significant likelihood-ratio test would suggest revisiting the linear age specification; a nonsignificant test is not proof of linearity.
+Therefore, there was insufficient evidence to conclude that the more flexible age specification provided a substantial improvement in fit, although this result does not establish that the linearity assumption is perfectly satisfied.
 
 ### 4.5. Potentially influential cases
 
-As a supplementary influence assessment, Cook's distance is calculated for an equivalent binomial `glm()` version of the preferred model.
-
-This is separate from the DHARMa outlier tests: an unusual residual is not necessarily an influential observation.
+Cook's distance was calculated using an equivalent binomial `glm()` model to identify observations potentially exerting disproportionate influence on coefficient estimates.
 
 ```{r}
 #| label: influence
+
 cook_values <- cooks.distance(age_linear)
 
 cook_cutoff <- 4 / nrow(titanic)
@@ -621,34 +698,37 @@ influence_summary |>
   )
 ```
 
-The `4/n` threshold is a heuristic for cases deserving review, not a reason to automatically exclude observations.
+The analysis identified 47 observations exceeding the heuristic Cook's distance threshold of 4/n (0.0056). However, the maximum Cook's distance was 0.029.
 
-Any influential cases should be investigated before drawing strong conclusions.
+Exceeding this screening threshold does not automatically indicate that observations should be removed. Rather, these cases warrant consideration when assessing the robustness of model estimates.
 
 ### 4.6. Diagnostic interpretation
 
-Simulation-based residual diagnostics did not identify statistically significant departures from the fitted model's assumptions. The uniformity test (p = .512) and dispersion test (p = .814) were nonsignificant. The outlier test approached, but did not reach, the conventional significance threshold (p = .057).
+Simulation-based residual diagnostics did not identify statistically significant departures from the fitted model's assumptions. The uniformity test (*p* = .512) and dispersion test (*p* = .814) were nonsignificant. The outlier test approached, but did not reach, the conventional significance threshold (*p* = .057).
 
-Collinearity was low, with variance inflation factors ranging from 1.07 to 1.42. The comparison between linear and spline specifications for age was also nonsignificant, χ²(2) = 5.14, p = .077, providing insufficient evidence that a more flexible age specification substantially improved fit.
+Collinearity was low, with variance inflation factors ranging from 1.07 to 1.42. The comparison between linear and spline specifications for age was also nonsignificant, χ²(2) = 5.14, *p* = .077, providing insufficient evidence that a more flexible age specification substantially improved fit.
 
 The influence analysis identified 47 observations exceeding the heuristic Cook's distance threshold of 4/n, although the maximum Cook's distance was relatively small (0.029). These observations may warrant further examination, but exceeding this threshold does not automatically indicate that they should be excluded.
 
-Overall, the diagnostics did not reveal strong evidence of model inadequacy, although the borderline outlier result, potential influential observations, and assumptions about the functional form of age should be acknowledged when interpreting the findings.
+Overall, the diagnostics did not reveal strong evidence of model inadequacy, although the borderline outlier result, potentially influential observations, and assumptions about the functional form of age should be acknowledged when interpreting the findings.
 
 ## Part 5: Select and report the preferred model
 
 ### 5.1. Model selection
 
-The preferred model is `mod3` because it has the smallest AIC and BIC and its added terms improve fit in the nested comparison sequence.
+The preferred model was `mod3`, containing sex, passenger class, and age.
 
-It also permits joint interpretation of sex, class, and age, which is substantively useful.
+It had the lowest AIC (657.28) and BIC (680.14), and each successive addition of predictors significantly improved model fit.
 
-This choice is conditional on the diagnostic evidence in Part 4. Significant misspecification would call for reconsideration of the functional form rather than automatic acceptance of the model.
+The final model was retained because it provided the best balance of model fit and complexity among the four candidate specifications.
+
+Its interpretation remains conditional on the diagnostic findings described in Part 4.
 
 ### 5.2. Coefficient table using `broom.mixed::tidy()`
 
 ```{r}
 #| label: tidy-coefficients
+
 coef_results <- broom.mixed::tidy(
   mod3,
   effects = "fixed",
@@ -660,11 +740,13 @@ coef_results <- broom.mixed::tidy(
     OR = exp(estimate),
     OR_lower = exp(conf.low),
     OR_upper = exp(conf.high),
+
     p_display = ifelse(
       p.value < .001,
       "< .001",
       sprintf("%.3f", p.value)
     ),
+
     Predictor = recode(
       term,
       "(Intercept)" = "Intercept",
@@ -747,30 +829,31 @@ term_value <- function(term_name, variable) {
 
 **Sex**
 
-The coefficient for males is `r sprintf('%.3f', term_value('Sexmale', estimate))` log-odds units, compared with females of the same age and passenger class.
+The coefficient for males was `r sprintf('%.3f', term_value('Sexmale', estimate))` log-odds units, compared with females of the same age and passenger class.
 
-The corresponding odds ratio is `r sprintf('%.3f', term_value('Sexmale', OR))` (95% CI `r sprintf('%.3f', term_value('Sexmale', OR_lower))`–`r sprintf('%.3f', term_value('Sexmale', OR_upper))`).
+The corresponding odds ratio was `r sprintf('%.3f', term_value('Sexmale', OR))` (95% CI `r sprintf('%.3f', term_value('Sexmale', OR_lower))`–`r sprintf('%.3f', term_value('Sexmale', OR_upper))`).
 
-Thus, male passengers had approximately `r sprintf('%.1f', 100 * (1 - term_value('Sexmale', OR)))`% lower odds of surviving, conditional on age and class.
+Thus, male passengers had approximately `r sprintf('%.1f', 100 * (1 - term_value('Sexmale', OR)))`% lower odds of surviving, conditional on age and passenger class.
 
 **Passenger class**
 
-Relative to first class, the second-class coefficient is `r sprintf('%.3f', term_value('Pclass2', estimate))` log-odds units (OR = `r sprintf('%.3f', term_value('Pclass2', OR))`, 95% CI `r sprintf('%.3f', term_value('Pclass2', OR_lower))`–`r sprintf('%.3f', term_value('Pclass2', OR_upper))`).
+Relative to first class, the second-class coefficient was `r sprintf('%.3f', term_value('Pclass2', estimate))` log-odds units (OR = `r sprintf('%.3f', term_value('Pclass2', OR))`, 95% CI `r sprintf('%.3f', term_value('Pclass2', OR_lower))`–`r sprintf('%.3f', term_value('Pclass2', OR_upper))`).
 
-The third-class coefficient is `r sprintf('%.3f', term_value('Pclass3', estimate))` (OR = `r sprintf('%.3f', term_value('Pclass3', OR))`, 95% CI `r sprintf('%.3f', term_value('Pclass3', OR_lower))`–`r sprintf('%.3f', term_value('Pclass3', OR_upper))`).
+The third-class coefficient was `r sprintf('%.3f', term_value('Pclass3', estimate))` (OR = `r sprintf('%.3f', term_value('Pclass3', OR))`, 95% CI `r sprintf('%.3f', term_value('Pclass3', OR_lower))`–`r sprintf('%.3f', term_value('Pclass3', OR_upper))`).
 
-Both comparisons hold age and sex constant.
+Both comparisons hold age and sex constant. Second- and third-class passengers had lower estimated odds of survival than first-class passengers.
 
 **Age**
 
-Each additional year of age is associated with a `r sprintf('%.3f', term_value('Age', estimate))` change in log-odds of survival, holding sex and class constant.
+Each additional year of age was associated with a `r sprintf('%.3f', term_value('Age', estimate))` change in log-odds of survival, holding sex and class constant.
 
-The odds ratio per year is `r sprintf('%.3f', term_value('Age', OR))` (95% CI `r sprintf('%.3f', term_value('Age', OR_lower))`–`r sprintf('%.3f', term_value('Age', OR_upper))`), representing approximately `r sprintf('%.1f', 100 * (1 - term_value('Age', OR)))`% lower odds of survival per additional year under the assumed linear age effect.
+The odds ratio per year was `r sprintf('%.3f', term_value('Age', OR))` (95% CI `r sprintf('%.3f', term_value('Age', OR_lower))`–`r sprintf('%.3f', term_value('Age', OR_upper))`), corresponding to approximately `r sprintf('%.1f', 100 * (1 - term_value('Age', OR)))`% lower odds of survival per additional year under the assumed linear age effect.
 
 ### 5.4. Preferred-model overall performance
 
 ```{r}
 #| label: final-performance
+
 model_stats |>
   filter(Model == "mod3") |>
   gt() |>
@@ -793,20 +876,21 @@ model_stats |>
 
 ### 5.5. Overall result
 
-The nested models show associations of sex, passenger class, and age with survival.
+The nested model comparisons demonstrated that sex, passenger class, and age were associated with survival outcomes.
 
 In the adjusted final model, the male-versus-female odds ratio was `r sprintf('%.3f', term_value('Sexmale', OR))`, the second-versus-first-class odds ratio was `r sprintf('%.3f', term_value('Pclass2', OR))`, the third-versus-first-class odds ratio was `r sprintf('%.3f', term_value('Pclass3', OR))`, and the per-year age odds ratio was `r sprintf('%.3f', term_value('Age', OR))`.
 
-These associations are observational and do not establish that any single factor caused survival outcomes.
+These associations are observational and do not establish that any individual predictor caused survival outcomes.
 
-### 5.6. Visualize a predictor using `ggeffects::ggpredict()`
+### 5.6. Visualize predicted probabilities using `ggeffects::ggpredict()`
 
 Passenger class is shown at the sample mean age with separate series for sex.
 
-These are model-adjusted predicted probabilities, not raw group survival rates.
+These are model-adjusted predicted probabilities rather than raw group survival rates.
 
 ```{r}
 #| label: ggeffects-prediction
+
 predicted <- ggeffects::ggpredict(
   mod3,
   terms = c(
@@ -900,30 +984,28 @@ ggplot(
   theme_minimal(base_size = 12)
 ```
 
-The visualization allows direct comparison of adjusted survival probabilities across ticket classes for females and males.
+At the mean passenger age of 29.70 years, predicted survival was highest among first-class female passengers (93.6%) and lowest among third-class male passengers (8.1%).
 
-Predicted probabilities vary by both sex and class, illustrating the associations identified in the logistic regression.
+Within each passenger class, females had higher predicted probabilities of survival than males. Predicted survival also decreased from first to third class for both sexes.
+
+These findings are consistent with the final model's odds ratios, which indicate substantial associations between survival, sex, and passenger class after adjusting for age.
 
 ## Part 6: Discussion and limitations
 
-Sex and ticket class show substantial associations with survival, while age contributes additional information after both are controlled.
+The findings indicate that passenger sex, ticket class, and age were associated with survival on the Titanic.
 
-Ticket class is only an indirect indicator of socioeconomic position, and the dataset is observational.
+Sex produced the largest improvement in the sequential model comparisons, χ²(1) = 213.82, *p* < .001. Passenger class provided a further substantial improvement after controlling for sex, χ²(2) = 78.27, *p* < .001. Age also improved fit after both predictors were included, χ²(1) = 25.15, *p* < .001.
 
-Unmeasured factors, including physical location aboard the ship, travel companions, and access to evacuation routes, could help account for the associations.
+These sequential improvements suggest that sex and passenger class were particularly informative for predicting survival. However, the relative improvements depend on the order of model entry and should not be treated as direct measures of causal importance.
 
-The complete-case sample excludes passengers missing age and may not represent the original passenger population perfectly.
+The final model indicates markedly lower odds of survival for males and passengers in lower ticket classes. Increasing age was also associated with lower odds of survival after adjusting for sex and class.
 
-The model assumes linear age effects on the logit scale and no interactions. These specifications may overlook differences for children and variation in the effect of sex across classes.
+Several limitations qualify these findings. Ticket class is an imperfect proxy for socioeconomic position, and the observational dataset cannot establish causal relationships.
 
-Accordingly, the results should be described as conditional associations rather than causal effects.
+Unmeasured factors, including physical location aboard the ship, travel companions, and access to evacuation routes, could partly explain the observed associations.
 
-## Part 7: Reproducibility and submission
+The complete-case analysis excluded passengers with missing age values, potentially introducing selection bias if missingness was related to passenger characteristics or survival.
 
-Render the document from a fresh R session and confirm that all dynamically generated tables, figures, and interpretations appear as expected.
+Finally, the model assumes linear age effects on the logit scale and does not include interactions. These assumptions may overlook differences between children and adults or variations in sex-related survival patterns across passenger classes.
 
-The GitHub repository should contain the Quarto source file, the RStudio project file, the Quarto configuration file, and the rendered website output.
-
-After committing and pushing the changes, verify that the GitHub Pages URL displays the completed analysis.
-
-Submit both the repository link and the website link as specified in the assignment.
+Overall, the analysis demonstrates that logistic regression can quantify associations between multiple predictors and a binary outcome while allowing competing model specifications to be evaluated using statistical evidence.
