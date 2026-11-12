@@ -1,0 +1,10 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "PSYCH 9041 - Lab 4"
+
+format:
+  html:
+    theme: cosmo
